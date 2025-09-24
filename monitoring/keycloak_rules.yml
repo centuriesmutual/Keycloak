@@ -1,0 +1,84 @@
+groups:
+  - name: keycloak
+    rules:
+      # High error rate
+      - alert: KeycloakHighErrorRate
+        expr: rate(keycloak_requests_total{code=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Keycloak high error rate"
+          description: "Keycloak error rate is {{ $value }} errors per second"
+
+      # High response time
+      - alert: KeycloakHighResponseTime
+        expr: histogram_quantile(0.95, rate(keycloak_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Keycloak high response time"
+          description: "95th percentile response time is {{ $value }} seconds"
+
+      # Database connection issues
+      - alert: KeycloakDatabaseConnectionIssues
+        expr: keycloak_database_connections_active / keycloak_database_connections_max > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Keycloak database connection pool nearly full"
+          description: "Database connection pool is {{ $value | humanizePercentage }} full"
+
+      # Memory usage
+      - alert: KeycloakHighMemoryUsage
+        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Keycloak high memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      # Failed login attempts
+      - alert: KeycloakHighFailedLogins
+        expr: rate(keycloak_failed_login_attempts_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of failed login attempts"
+          description: "{{ $value }} failed login attempts per second"
+
+  - name: infrastructure
+    rules:
+      # Disk space
+      - alert: HighDiskUsage
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is above 90% on {{ $labels.instance }}"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80% on {{ $labels.instance }}"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 80% on {{ $labels.instance }}"
